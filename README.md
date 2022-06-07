@@ -7,5 +7,5 @@
 - https://github.com/mazzzystar/randomCNN-voice-transfer
 - https://github.com/CorentinJ/Real-Time-Voice-Cloning
 - https://github.com/vadim-v-lebedev/audio_style_tranfer
-
+- Resource from teacher : https://www.deepmind.com/blog/wavenet-a-generative-model-for-raw-audio
 
