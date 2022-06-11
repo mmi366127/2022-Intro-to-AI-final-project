@@ -1,16 +1,15 @@
 
-from audioop import bias
-from cmath import tanh
-import torch
-import torch.nn as nn
+
 import torch.nn.functional as F
-from torch.autograd import Variable
+import torch.nn as nn
+import torch
 
 
 N_FFT = 512
 N_CHANNELS = round(1 + N_FFT/2)
 OUT_CHANNELS = 32
 
+# Random CNN model
 
 class RandomCNN(nn.Module):
     def __init__(self):
@@ -107,13 +106,7 @@ class RandomCNN(nn.Module):
 
         return J_style_layer
 
-
-"""
-a_random = Variable(torch.randn(1, 1, 257, 430)).float()
-model = RandomCNN()
-a_O = model(a_random)
-print(a_O.shape)
-"""
+# TraVeLGan model
 
 def _L2normalize(v, eps = 1e-12):
     return v / (torch.norm(v) + eps)
@@ -172,7 +165,6 @@ class ConvTransposeSN2d(nn.ConvTranspose2d):
     def forward(self, x):
         return F.conv_transpose2d(x, self.W_, self.bias, self.stride, self.padding, 0, self.groups, self.dilation)
 
-
 class Siamese(nn.Module):
     def __init__(self, input_size, output_size = 128):
         
@@ -214,7 +206,6 @@ class Siamese(nn.Module):
         x = self.Dense(x)
         return x
         
-
 class Generater(nn.Module):
     def __init__(self, input_size):
         
@@ -275,7 +266,6 @@ class Generater(nn.Module):
         
         return x6
 
-
 class Discriminator(nn.Module):
     def __init__(self, input_size):
     
@@ -314,8 +304,112 @@ class Discriminator(nn.Module):
         x = self.Dense(x)
         return x
 
+class TraVeLGan():
+    def forward(self, x, y, all = True):
+        print('forward')
 
+        x1, x2, x3 = self.crop(x)
+        y1, y2, y3 = self.crop(y)
+
+        if all:
+            
+            gen_x_1 = self.G(x1)
+            gen_x_2 = self.G(x2)
+            gen_x_3 = self.G(x3)
+            
+            gen_y_1 = self.G(y1)
+            gen_y_2 = self.G(y2)
+            gen_y_3 = self.G(y3)
+
+            gen = torch.cat([gen_x_1, gen_x_2, gen_x_3], dim = -1)
+
+            iden_gen = self.D(gen)
+            iden_ori = self.D(y)
+
+            siam_x_1_gen = self.S(gen_x_1)
+            siam_x_2_gen = self.S(gen_x_3)
+
+            siam_x_1 = self.S(x1)
+            siam_x_2 = self.S(x3)
+
+
+            # identity mapping loss
+            loss_id = (TraVeLGan.mae(y1, gen_y_1) + TraVeLGan.mae(y2, gen_y_2) + TraVeLGan.mae(y3, gen_y_3)) / 3.0
+
+            # travel loss
+            loss_m = TraVeLGan.loss_travel(siam_x_1, siam_x_1_gen, siam_x_2, siam_x_2_gen) + TraVeLGan.siamese(siam_x_1, siam_x_2)
+
+            # generator and critic losses
+            loss_g = TraVeLGan.g_loss_f(iden_gen)
+            loss_dr = TraVeLGan.d_loss_r(iden_ori)
+            loss_df = TraVeLGan.d_loss_f(iden_gen)
+            loiss_d = (loss_dr + loss_df) / 2
+
+            # generator + siamese total loss
+
+            loss_total = self.alpha * loss_g + self.beta * loss_m + self.gamma * loss_id
+
+        else: # Train critic only
+
+            gen_1 = self.G(x[:, :, :, : self.WW])
+            gen_2 = self.G(x[:, :, :, self.WW: self.WW * 2])
+            gen_3 = self.G(x[:, :, :, self.WW * 2:])
+
+            gen = torch.cat([gen_1, gen_2, gen_3], dim = -1)
+
+            iden_gen = self.D(gen)
+            iden_ori = self.D(y)
+            
+            loss_dr = TraVeLGan.d_loss_r(iden_ori)
+            loss_df = TraVeLGan.d_loss_f(iden_gen)
+            loss_total = (loss_dr + loss_df) / 2.0
+
+
+        return gen, loss_total
+
+    @staticmethod
+    def mae(x, y):
+        return torch.mean(torch.abs(x - y))
+
+    @staticmethod
+    def mse(x, y):
+        return torch.mean((x - y)**2)
+
+    @staticmethod
+    def loss_travel(siam_x_1, siam_x_1_gen, siam_x_2, siam_x_2_gen):
+        L1 = torch.mean(((siam_x_1 - siam_x_2) - (siam_x_1_gen - siam_x_2_gen))**2)
+        L2 = torch.mean(torch.sum(-(F.normalize(siam_x_1 - siam_x_2, p = 2, dim = -1) * F.normalize(siam_x_1_gen - siam_x_2_gen, p = 2, dim = -1)), dim = -1))
+        return L1 + L2
+
+    @staticmethod
+    def loss_siamses(siam_x_1, siam_x_2, zero, delta):
+        logits = torch.sqrt(torch.sum((siam_x_1 - siam_x_2)**2 ,axis = -1, keepdims = True))
+        return torch.mean(torch.square(torch.maximum(delta - logits, zero)))
+
+    @staticmethod
+    def d_loss_f(fake, zero):
+        return torch.mean(torch.maximum(1 + fake, zero))
+    
+    @staticmethod
+    def d_loss_r(real, zero):
+        return torch.mean(torch.maximum(1 - real, zero))
+
+    @staticmethod
+    def g_loss_f(fake):
+        return torch.mean(-fake)
+
+        
+        
 
 
 if __name__ == '__main__':
-    pass
+    
+    model = TraVeLGan(input_size = (1, 192, 24))
+
+    x = torch.rand((20, 1, 192, 24))
+
+    print(x.size())
+
+    x = model(x, False)
+
+    print(x)
