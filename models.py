@@ -1,8 +1,14 @@
 
 
+from torch.nn.utils import clip_grad_norm_
+# from sklearn.interpolate import interp1d
+# from sklearn.metrics import roc_curve
+from scipy.optimize import brentq
 import torch.nn.functional as F
 import torch.nn as nn
+import numpy as np
 import torch
+
 
 
 N_FFT = 512
@@ -251,11 +257,11 @@ class Generater(nn.Module):
 
 
     def forward(self, x):
-
+        
         x1 = self.conv1(x)
         x2 = self.conv2(x1)
         x3 = self.conv3(x2)
-        
+
         x4 = self.deconv1(x3)
         x4 = torch.cat((x4, x2), dim = 1)
         
@@ -303,113 +309,145 @@ class Discriminator(nn.Module):
         x = self.flatten(x)
         x = self.Dense(x)
         return x
+        
+#  model
 
-class TraVeLGan():
-    def forward(self, x, y, all = True):
-        print('forward')
 
-        x1, x2, x3 = self.crop(x)
-        y1, y2, y3 = self.crop(y)
 
-        if all:
+class SpeakerEncoder(nn.Module):
+    def __init__(self, device, loss_device):
+        super().__init__()
+        self.loss_device = loss_device
+        
+        # Network defition
+        self.lstm = nn.LSTM(input_size=mel_n_channels,
+                            hidden_size=model_hidden_size, 
+                            num_layers=model_num_layers, 
+                            batch_first=True).to(device)
+        self.linear = nn.Linear(in_features=model_hidden_size, 
+                                out_features=model_embedding_size).to(device)
+        self.relu = torch.nn.ReLU().to(device)
+        
+        # Cosine similarity scaling (with fixed initial parameter values)
+        self.similarity_weight = nn.Parameter(torch.tensor([10.])).to(loss_device)
+        self.similarity_bias = nn.Parameter(torch.tensor([-5.])).to(loss_device)
+
+        # Loss
+        self.loss_fn = nn.CrossEntropyLoss().to(loss_device)
+        
+    def do_gradient_ops(self):
+        # Gradient scale
+        self.similarity_weight.grad *= 0.01
+        self.similarity_bias.grad *= 0.01
             
-            gen_x_1 = self.G(x1)
-            gen_x_2 = self.G(x2)
-            gen_x_3 = self.G(x3)
-            
-            gen_y_1 = self.G(y1)
-            gen_y_2 = self.G(y2)
-            gen_y_3 = self.G(y3)
-
-            gen = torch.cat([gen_x_1, gen_x_2, gen_x_3], dim = -1)
-
-            iden_gen = self.D(gen)
-            iden_ori = self.D(y)
-
-            siam_x_1_gen = self.S(gen_x_1)
-            siam_x_2_gen = self.S(gen_x_3)
-
-            siam_x_1 = self.S(x1)
-            siam_x_2 = self.S(x3)
-
-
-            # identity mapping loss
-            loss_id = (TraVeLGan.mae(y1, gen_y_1) + TraVeLGan.mae(y2, gen_y_2) + TraVeLGan.mae(y3, gen_y_3)) / 3.0
-
-            # travel loss
-            loss_m = TraVeLGan.loss_travel(siam_x_1, siam_x_1_gen, siam_x_2, siam_x_2_gen) + TraVeLGan.siamese(siam_x_1, siam_x_2)
-
-            # generator and critic losses
-            loss_g = TraVeLGan.g_loss_f(iden_gen)
-            loss_dr = TraVeLGan.d_loss_r(iden_ori)
-            loss_df = TraVeLGan.d_loss_f(iden_gen)
-            loiss_d = (loss_dr + loss_df) / 2
-
-            # generator + siamese total loss
-
-            loss_total = self.alpha * loss_g + self.beta * loss_m + self.gamma * loss_id
-
-        else: # Train critic only
-
-            gen_1 = self.G(x[:, :, :, : self.WW])
-            gen_2 = self.G(x[:, :, :, self.WW: self.WW * 2])
-            gen_3 = self.G(x[:, :, :, self.WW * 2:])
-
-            gen = torch.cat([gen_1, gen_2, gen_3], dim = -1)
-
-            iden_gen = self.D(gen)
-            iden_ori = self.D(y)
-            
-            loss_dr = TraVeLGan.d_loss_r(iden_ori)
-            loss_df = TraVeLGan.d_loss_f(iden_gen)
-            loss_total = (loss_dr + loss_df) / 2.0
-
-
-        return gen, loss_total
-
-    @staticmethod
-    def mae(x, y):
-        return torch.mean(torch.abs(x - y))
-
-    @staticmethod
-    def mse(x, y):
-        return torch.mean((x - y)**2)
-
-    @staticmethod
-    def loss_travel(siam_x_1, siam_x_1_gen, siam_x_2, siam_x_2_gen):
-        L1 = torch.mean(((siam_x_1 - siam_x_2) - (siam_x_1_gen - siam_x_2_gen))**2)
-        L2 = torch.mean(torch.sum(-(F.normalize(siam_x_1 - siam_x_2, p = 2, dim = -1) * F.normalize(siam_x_1_gen - siam_x_2_gen, p = 2, dim = -1)), dim = -1))
-        return L1 + L2
-
-    @staticmethod
-    def loss_siamses(siam_x_1, siam_x_2, zero, delta):
-        logits = torch.sqrt(torch.sum((siam_x_1 - siam_x_2)**2 ,axis = -1, keepdims = True))
-        return torch.mean(torch.square(torch.maximum(delta - logits, zero)))
-
-    @staticmethod
-    def d_loss_f(fake, zero):
-        return torch.mean(torch.maximum(1 + fake, zero))
+        # Gradient clipping
+        clip_grad_norm_(self.parameters(), 3, norm_type=2)
     
-    @staticmethod
-    def d_loss_r(real, zero):
-        return torch.mean(torch.maximum(1 - real, zero))
-
-    @staticmethod
-    def g_loss_f(fake):
-        return torch.mean(-fake)
-
+    def forward(self, utterances, hidden_init=None):
+        """
+        Computes the embeddings of a batch of utterance spectrograms.
         
+        :param utterances: batch of mel-scale filterbanks of same duration as a tensor of shape 
+        (batch_size, n_frames, n_channels) 
+        :param hidden_init: initial hidden state of the LSTM as a tensor of shape (num_layers, 
+        batch_size, hidden_size). Will default to a tensor of zeros if None.
+        :return: the embeddings as a tensor of shape (batch_size, embedding_size)
+        """
+        # Pass the input through the LSTM layers and retrieve all outputs, the final hidden state
+        # and the final cell state.
+        out, (hidden, cell) = self.lstm(utterances, hidden_init)
         
+        # We take only the hidden state of the last layer
+        embeds_raw = self.relu(self.linear(hidden[-1]))
+        
+        # L2-normalize it
+        embeds = embeds_raw / (torch.norm(embeds_raw, dim=1, keepdim=True) + 1e-5)        
+
+        return embeds
+    
+    def similarity_matrix(self, embeds):
+        """
+        Computes the similarity matrix according the section 2.1 of GE2E.
+
+        :param embeds: the embeddings as a tensor of shape (speakers_per_batch, 
+        utterances_per_speaker, embedding_size)
+        :return: the similarity matrix as a tensor of shape (speakers_per_batch,
+        utterances_per_speaker, speakers_per_batch)
+        """
+        speakers_per_batch, utterances_per_speaker = embeds.shape[:2]
+        
+        # Inclusive centroids (1 per speaker). Cloning is needed for reverse differentiation
+        centroids_incl = torch.mean(embeds, dim=1, keepdim=True)
+        centroids_incl = centroids_incl.clone() / (torch.norm(centroids_incl, dim=2, keepdim=True) + 1e-5)
+
+        # Exclusive centroids (1 per utterance)
+        centroids_excl = (torch.sum(embeds, dim=1, keepdim=True) - embeds)
+        centroids_excl /= (utterances_per_speaker - 1)
+        centroids_excl = centroids_excl.clone() / (torch.norm(centroids_excl, dim=2, keepdim=True) + 1e-5)
+
+        # Similarity matrix. The cosine similarity of already 2-normed vectors is simply the dot
+        # product of these vectors (which is just an element-wise multiplication reduced by a sum).
+        # We vectorize the computation for efficiency.
+        sim_matrix = torch.zeros(speakers_per_batch, utterances_per_speaker,
+                                 speakers_per_batch).to(self.loss_device)
+        mask_matrix = 1 - np.eye(speakers_per_batch, dtype=np.int)
+        for j in range(speakers_per_batch):
+            mask = np.where(mask_matrix[j])[0]
+            sim_matrix[mask, :, j] = (embeds[mask] * centroids_incl[j]).sum(dim=2)
+            sim_matrix[j, :, j] = (embeds[j] * centroids_excl[j]).sum(dim=1)
+        
+        ## Even more vectorized version (slower maybe because of transpose)
+        # sim_matrix2 = torch.zeros(speakers_per_batch, speakers_per_batch, utterances_per_speaker
+        #                           ).to(self.loss_device)
+        # eye = np.eye(speakers_per_batch, dtype=np.int)
+        # mask = np.where(1 - eye)
+        # sim_matrix2[mask] = (embeds[mask[0]] * centroids_incl[mask[1]]).sum(dim=2)
+        # mask = np.where(eye)
+        # sim_matrix2[mask] = (embeds * centroids_excl).sum(dim=2)
+        # sim_matrix2 = sim_matrix2.transpose(1, 2)
+        
+        sim_matrix = sim_matrix * self.similarity_weight + self.similarity_bias
+        return sim_matrix
+    
+    def loss(self, embeds):
+        """
+        Computes the softmax loss according the section 2.1 of GE2E.
+        
+        :param embeds: the embeddings as a tensor of shape (speakers_per_batch, 
+        utterances_per_speaker, embedding_size)
+        :return: the loss and the EER for this batch of embeddings.
+        """
+        speakers_per_batch, utterances_per_speaker = embeds.shape[:2]
+        
+        # Loss
+        sim_matrix = self.similarity_matrix(embeds)
+        sim_matrix = sim_matrix.reshape((speakers_per_batch * utterances_per_speaker, 
+                                         speakers_per_batch))
+        ground_truth = np.repeat(np.arange(speakers_per_batch), utterances_per_speaker)
+        target = torch.from_numpy(ground_truth).long().to(self.loss_device)
+        loss = self.loss_fn(sim_matrix, target)
+        
+        # EER (not backpropagated)
+        with torch.no_grad():
+            inv_argmax = lambda i: np.eye(1, speakers_per_batch, i, dtype=np.int)[0]
+            labels = np.array([inv_argmax(i) for i in ground_truth])
+            preds = sim_matrix.detach().cpu().numpy()
+
+            # Snippet from https://yangcha.github.io/EER-ROC/
+            fpr, tpr, thresholds = roc_curve(labels.flatten(), preds.flatten())           
+            eer = brentq(lambda x: 1. - x - interp1d(fpr, tpr)(x), 0., 1.)
+            
+        return loss, eer
 
 
 if __name__ == '__main__':
     
-    model = TraVeLGan(input_size = (1, 192, 24))
-
     x = torch.rand((20, 1, 192, 24))
+
+    model = Siamese(input_size = (1, 192, 24))
 
     print(x.size())
 
-    x = model(x, False)
+    x = model(x)
 
-    print(x)
+    print(x.size())
