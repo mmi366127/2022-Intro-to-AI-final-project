@@ -16,7 +16,7 @@ import torch
 hop = 192
 N_FFT = hop * 6 
 
-sampleRate = 44010
+sampleRate = 22050
 
 min_level_db = -100
 ref_level_db = 20

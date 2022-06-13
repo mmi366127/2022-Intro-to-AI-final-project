@@ -1,16 +1,13 @@
 
-
-from scipy.optimize import brentq
 import torch.nn.functional as F
 import torch.nn as nn
 import numpy as np
 import torch
 
 
-# TraVeLGan model
-
 def _L2normalize(v, eps = 1e-12):
     return v / (torch.norm(v) + eps)
+
 
 def max_sinular_value(W, u, power_iterations = 1):
     _u = u
@@ -20,6 +17,7 @@ def max_sinular_value(W, u, power_iterations = 1):
 
     sigma = torch.sum(F.linear(_u, torch.transpose(W.data, 0, 1)) * _v)
     return sigma, _u
+
 
 class SNLinear(nn.Linear):
     def __init__(self, in_features, out_features, **kwargs):
@@ -36,6 +34,7 @@ class SNLinear(nn.Linear):
     def forward(self, x):
         return F.linear(x, self.W_, self.bias)
 
+
 class ConvSN2d(nn.Conv2d):
     def __init__(self, in_channels, out_channels, kernel_size, **kwargs):
         super(ConvSN2d, self).__init__(in_channels, out_channels, kernel_size, **kwargs)
@@ -51,6 +50,7 @@ class ConvSN2d(nn.Conv2d):
     def forward(self, x):
         return F.conv2d(x, self.W_, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
+
 class ConvTransposeSN2d(nn.ConvTranspose2d):
     def __init__(self, in_channels, out_channels, kernel_size, **kwargs):
         super(ConvTransposeSN2d, self).__init__(in_channels, out_channels, kernel_size, **kwargs)
@@ -65,6 +65,7 @@ class ConvTransposeSN2d(nn.ConvTranspose2d):
 
     def forward(self, x):
         return F.conv_transpose2d(x, self.W_, self.bias, self.stride, self.padding, 0, self.groups, self.dilation)
+
 
 class Siamese(nn.Module):
     def __init__(self, input_size, output_size = 128):
@@ -106,7 +107,8 @@ class Siamese(nn.Module):
         x = self.flatten(x)
         x = self.Dense(x)
         return x
-        
+
+
 class Generater(nn.Module):
     def __init__(self, input_size):
         
@@ -167,6 +169,7 @@ class Generater(nn.Module):
         
         return x6
 
+
 class Discriminator(nn.Module):
     def __init__(self, input_size):
     
@@ -204,18 +207,21 @@ class Discriminator(nn.Module):
         x = self.flatten(x)
         x = self.Dense(x)
         return x
-        
-#  model
+
 
 
 if __name__ == '__main__':
+
+    x = torch.randn(20, 1, 192, 24)
+
+    model_S = Siamese(input_size = (1, 192, 24))
+    model_G = Generater(input_size = (1, 192, 24))
+    model_D = Discriminator(input_size = (1, 192, 24))
+
+    s = model_S(x)
+    g = model_G(x)
+    d = model_D(x)
+
+    print(s.size(), g.size(), d.size())
+
     
-    x = torch.rand((20, 1, 192, 24))
-
-    model = Siamese(input_size = (1, 192, 24))
-
-    print(x.size())
-
-    x = model(x)
-
-    print(x.size())
