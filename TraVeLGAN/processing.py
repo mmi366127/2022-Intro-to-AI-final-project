@@ -7,9 +7,8 @@ import librosa
 import torch 
 
 
-N_FFT = hop * 6
 hop = 192
-
+N_FFT = hop * 6
 sampleRate = 22050
 
 min_level_db = -100
