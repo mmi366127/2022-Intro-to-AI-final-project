@@ -5,6 +5,7 @@ import librosa.display
 import numpy as np
 import librosa
 import torch 
+from tqdm import tqdm
 
 
 N_FFT = hop * 6
@@ -40,6 +41,7 @@ def wav2spectrum(x):
     x = np.array(torch.squeeze(melspecfunc(torch.Tensor(x))).detach().cpu())
     x = librosa.power_to_db(x) - ref_level_db
     return normalize(x)
+
 
 def GRAD(spec, transform_fn, samples=None, init_x0=None, maxiter=1000, tol=1e-6, verbose=1, evaiter=10, lr=0.003):
 
@@ -80,6 +82,10 @@ def GRAD(spec, transform_fn, samples=None, init_x0=None, maxiter=1000, tol=1e-6,
                     pbar.update(evaiter)
 
     return x.detach().view(-1).cpu()
+
+
+def spectral_convergence(input, target):
+    return 20 * ((input - target).norm().log10() - target.norm().log10)
 
 def spectrum2wav(spectrum):
     # Reconstruct the audio from spectrum
