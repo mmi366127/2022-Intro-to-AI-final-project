@@ -29,10 +29,12 @@ We know that image to image style transfer can be done by GAN algorithm(Generati
 TraVeLGAN stands for Transformation Vector Learning Gnerative Adversial Network, using a Siamese network $S$ to transfer image to latent vectors, a generator $G$ and discriminator $D$ trains to preserve the vector arithmetic between points in the latent space of $S$. The transformation must satisfiy the following equation, which let $G(X)$ be the generated image of image $X$, $S(X)$ be the vector encoding of $X$, and $A_1$, $A_2$ be two images in the same domain, then $S(A_1) - S(A_2) = S(G(A_1)) - S(G(A_2))$. This can preserve semantic information, which is the content of the speech. 
 
 The above condition is the ideal condition, but nothing is that perfect, id est, the leftside cannot be exactly equal to the rightside, thus we will define the loss function as the consine similarity $+$ Euclidean distance between the two transformation vectors. Thus the loss function is the following.
+
 $$L_{(G,S)}=E_{(a_{\frac L2, 1}, a_{\frac L2 , 2})}[cosine \ similarity(t_{12}, t_{12}' ) + \lVert  t_{12} - t_{12}'  \rVert_2^2] \  \ where \ \ a_{\frac L2 , 1} \neq a_{\frac L2 , 2}
 \\
 t_{ij} = S(a_{\frac L2,i}) - S(a_{\frac L2, j}) \\ 
 t_{ij}'= S(G(a_{\frac L2, i})) - S(G(a_{\frac L2, j}))$$
+
 The following is our training pipeline:
 
 1. Cut the source image $LxH$ in half, getting $2$ $\frac{L}{2}xH$ spectrograms.
