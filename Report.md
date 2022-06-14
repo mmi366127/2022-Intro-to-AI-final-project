@@ -30,9 +30,10 @@ TraVeLGAN stands for Transformation Vector Learning Gnerative Adversial Network,
 
 The above condition is the ideal condition, but nothing is that perfect, id est, the leftside cannot be exactly equal to the rightside, thus we will define the loss function as the consine similarity $+$ Euclidean distance between the two transformation vectors. Thus the loss function is the following.
 
-$$L_{(G,S)}=E_{(a_{\frac L2, 1}, a_{\frac L2 , 2})}[cosine \ similarity(t_{12}, t_{12}' ) + \lVert  t_{12} - t_{12}'  \rVert_2^2] \  \ where \ \ a_{\frac L2 , 1} \neq a_{\frac L2 , 2}
-\\
+$$L_{(G,S)}=E_{(a_{\frac L2, 1}, a_{\frac L2 , 2})}[cosine \ similarity(t_{12}, t_{12}' ) + \lVert  t_{12} - t_{12}'  \rVert_2^2] \  \ where \ \ a_{\frac L2 , 1} \neq a_{\frac L2 , 2} \\
+
 t_{ij} = S(a_{\frac L2,i}) - S(a_{\frac L2, j}) \\ 
+
 t_{ij}'= S(G(a_{\frac L2, i})) - S(G(a_{\frac L2, j}))$$
 
 The following is our training pipeline:
