@@ -26,13 +26,13 @@ def add_audio(x, db):
     x = torch.tensor(x)
     return Vol(gain = db, gain_type = 'db')(x).detach().cpu().numpy()
 
-def writeFile(fileName, x):
+def writeFile(fileName, x, sampleRate):
     if version.parse(librosa.__version__) < version.parse('0.8.0'):
         librosa.output.write_wav(fileName, x, sampleRate)
     else:
         soundfile.write(fileName, x, sampleRate)
 
-def loadFile(filename):
+def loadFile(filename, sampleRate):
     x, sr = librosa.load(filename, sr = sampleRate)
     return x
 
@@ -78,7 +78,7 @@ def plot_spectrogram_with_raw_signal(signal, sr, title = 'spectrum'):
     plt.title(title)
     plt.show()
 
-def plot_spectrogram(spec):
+def plot_spectrogram(spec, sampleRate):
     D = np.abs(spec)
     db = librosa.amplitude_to_db(D, ref = np.max)
     librosa.display.specshow(db, sr = sampleRate, y_axis = 'log', x_axis = 'time')
