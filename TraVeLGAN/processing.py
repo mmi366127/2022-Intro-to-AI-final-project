@@ -4,12 +4,14 @@ from torchaudio.transforms import MelSpectrogram, InverseMelScale, GriffinLim
 import librosa.display
 import numpy as np
 import librosa
+import torch.nn as nn
 import torch 
 from tqdm import tqdm
+# import soundfile as sf
 
 
-N_FFT = hop * 6
 hop = 192
+N_FFT = hop * 6
 
 sampleRate = 22050
 
@@ -85,7 +87,7 @@ def GRAD(spec, transform_fn, samples=None, init_x0=None, maxiter=1000, tol=1e-6,
 
 
 def spectral_convergence(input, target):
-    return 20 * ((input - target).norm().log10() - target.norm().log10)
+    return 20 * ((input - target).norm().log10() - target.norm().log10())
 
 def spectrum2wav(spectrum):
     # Reconstruct the audio from spectrum
@@ -100,6 +102,12 @@ def spectrum2wav(spectrum):
 
     x = denormalize(spectrum) + ref_level_db
     x = librosa.db_to_power(x)
-    wv = GRAD(np.expand_dims(x, 0), melspecfunc, maxiter = 2000, evaiter = 10, tol = 1e-8)
-    return np.array(S.detach().cpu())
+    wv = GRAD(spec = np.expand_dims(x, 0), transform_fn = melspecfunc, maxiter = 2000, evaiter = 10, tol = 1e-8)
+    return np.array(np.squeeze(wv))
     # return np.array(S.detach().cpu())
+
+# if __name__ == '__main__':
+#     x, sr = librosa.load('../testaudio/5second.wav')
+#     x = wav2spectrum(x)
+#     x = spectrum2wav(x)
+#     sf.write('../testaudio/output.wav', x, sr)
