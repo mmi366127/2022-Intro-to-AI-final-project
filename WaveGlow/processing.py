@@ -1,16 +1,9 @@
-from torchaudio.transforms import MelSpectrogram
-import librosa.display
-from tqdm import tqdm
-import torch.nn as nn
-import numpy as np
-import librosa
-import torch.nn as nn
-import torch 
+
 from librosa.filters import mel as librosa_mel_fn
 from torch_stft import STFT
-from scipy.io.wavfile import read, write
-from vars import *
-from models import WaveGlow
+from WaveGlow.vars import *
+import torch 
+
 
 """
 Some Codes are from https://github.com/NVIDIA/tacotron2/tree/185cd24e046cc1304b4f8e564734d2498c6e2e6f
@@ -43,14 +36,19 @@ def mel_spectrogram(x):
 
 def wav2spectrum(x):
     x = x / MAX_WAV_VALUE
-    x = x.unsqueeze(0)
+    x = x[None, :]
     x = torch.Tensor(x)
     S = mel_spectrogram(x)
     S = torch.squeeze(S, 0)
-    return S.detach().cpu()
+    return S.detach().cpu().numpy()
 
 
 if __name__ == '__main__':
+
+
+    from models import WaveGlow
+    from scipy.io.wavfile import read, write
+
     sampleRate, data = read('./LJ001-0001.wav')
     x = torch.from_numpy(data).float()
     # # # print(sampleRate)
