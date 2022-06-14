@@ -6,6 +6,7 @@ from tqdm import tqdm
 import torch.nn as nn
 import numpy as np
 import librosa
+import torch.nn as nn
 import torch 
 
 
@@ -75,6 +76,10 @@ def GRAD(spec, transform_fn, samples = None, init_x0 = None, maxiter = 1000, tol
 
     return x.detach().view(-1).cpu()
 
+
+def spectral_convergence(input, target):
+    return 20 * ((input - target).norm().log10() - target.norm().log10())
+
 def spectrum2wav(spectrum):
     # Reconstruct the audio from spectrum
     """
@@ -87,5 +92,8 @@ def spectrum2wav(spectrum):
     """
     x = denormalize(spectrum) + ref_level_db
     x = librosa.db_to_power(x)
-    wv = GRAD(np.expand_dims(x, 0), melspecfunc, maxiter = 2000, evaiter = 10, tol = 1e-8)
-    return np.array(wv.detach().cpu())
+    wv = GRAD(spec = np.expand_dims(x, 0), transform_fn = melspecfunc, maxiter = 2000, evaiter = 10, tol = 1e-8)
+    return np.array(np.squeeze(wv))
+
+
+
