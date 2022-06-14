@@ -35,7 +35,6 @@ def mel_spectrogram(x):
     return mel_output
 
 def wav2spectrum(x):
-    x = x / MAX_WAV_VALUE
     x = x[None, :]
     x = torch.Tensor(x)
     S = mel_spectrogram(x)
@@ -107,10 +106,11 @@ if __name__ == '__main__':
 
 
     from scipy.io.wavfile import read, write
+    import librosa
 
 
-    sampleRate, data = read('./LJ001-0001.wav')
-    # data, sampleRate = librosa.load('./LJ001-0001.wav')
+    # sampleRate, data = read('./LJ001-0001.wav')
+    data, sampleRate = librosa.load('./LJ001-0001.wav', res_type = 'audioread')
     x = torch.from_numpy(data).float()
     # # # print(sampleRate)
     # x = wav2spectrum(x)
@@ -130,13 +130,10 @@ if __name__ == '__main__':
     mel = torch.autograd.Variable(mel.cuda())
     mel = torch.unsqueeze(mel, dim = 0)
     denoiser = Denoiser(wg)
-    for i in denoiser.parameters():
-        print(i)
-    print('done')
     # print(mel.shape)
     with torch.no_grad():
         audio = wg.infer(mel, sigma = 1.0)
-        audio = denoise(wg, audio)
+        audio = denoiser(audio)
         audio = audio * MAX_WAV_VALUE
     audio = audio.squeeze()
     audio = audio.cpu().numpy()
