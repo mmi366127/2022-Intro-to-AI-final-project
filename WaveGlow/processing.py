@@ -40,7 +40,7 @@ def wav2spectrum(x):
     x = torch.Tensor(x)
     S = mel_spectrogram(x)
     S = torch.squeeze(S, 0)
-    return S.detach().cpu().numpy()
+    return S.detach().cpu()
 
 
 if __name__ == '__main__':
