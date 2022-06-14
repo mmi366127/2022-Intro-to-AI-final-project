@@ -8,8 +8,9 @@ import torch
 Some Codes are from https://github.com/NVIDIA/tacotron2/tree/185cd24e046cc1304b4f8e564734d2498c6e2e6f
 """
 
-mel_basis = librosa_mel_fn(sample_rate, filter_length, n_mel_channels, mel_fmin, mel_fmax)
+mel_basis = librosa_mel_fn(sr = sample_rate, n_fft = filter_length, n_mels = n_mel_channels, fmin = mel_fmin, fmax = mel_fmax)
 mel_basis = torch.from_numpy(mel_basis).float()
+
 stft = STFT(filter_length = filter_length, hop_length = hop_length, win_length = win_length, window = 'hann')
 
 
@@ -45,13 +46,13 @@ def wav2spectrum(x):
 class Denoiser(torch.nn.Module):
     """ Removes model bias from audio produced with waveglow """
 
-    def __init__(self, waveglow, filter_length=1024, n_overlap=4,
-                 win_length=1024, mode='zeros'):
+    def __init__(self, waveglow, filter_length = 1024, n_overlap = 4,
+                 win_length = 1024, mode='zeros'):
         super(Denoiser, self).__init__()
         # print(filter_length, int(filter_length / n_overlap), win_length)
-        self.stft = STFT(filter_length=filter_length,
-                         hop_length=int(filter_length/n_overlap),
-                         win_length=win_length).cuda()
+        self.stft = STFT(filter_length = filter_length,
+                         hop_length = int(filter_length/n_overlap),
+                         win_length = win_length).cuda()
         if mode == 'zeros':
             mel_input = torch.zeros(
                 (1, 80, 88),

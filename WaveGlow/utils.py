@@ -1,6 +1,6 @@
 from scipy.io.wavfile import read, write
 
-def writeFile(fileName, x, sampleRate):
+def writeFile(filename, x, sampleRate):
     write(filename, sampleRate, x)
 
 def loadFile(filename, sampleRate):
