@@ -53,28 +53,28 @@ def GRAD(spec, transform_fn, samples=None, init_x0=None, maxiter=1000, tol=1e-6,
     metric = 'spectral_convergence'
 
     init_loss = None
-    with tqdm(total=maxiter, disable=not verbose) as pbar:
-        for i in range(maxiter):
-            optimizer.zero_grad()
-            V = transform_fn(x)
-            loss = criterion(V, T)
-            loss.backward()
-            optimizer.step()
-            lr = lr*0.9999
-            for param_group in optimizer.param_groups:
-              param_group['lr'] = lr
+    # with tqdm(total=maxiter, disable=not verbose) as pbar:
+    for i in range(maxiter):
+        optimizer.zero_grad()
+        V = transform_fn(x)
+        loss = criterion(V, T)
+        loss.backward()
+        optimizer.step()
+        lr = lr*0.9999
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
 
-            if i % evaiter == evaiter - 1:
-                with torch.no_grad():
-                    V = transform_fn(x)
-                    bar_dict[metric] = metric_func(V, spec).item()
-                    l2_loss = criterion(V, spec).item()
-                    pbar.set_postfix(**bar_dict, loss=l2_loss)
-                    pbar.update(evaiter)
+        if i % evaiter == evaiter - 1:
+            with torch.no_grad():
+                V = transform_fn(x)
+                bar_dict[metric] = metric_func(V, spec).item()
+                l2_loss = criterion(V, spec).item()
+                # pbar.set_postfix(**bar_dict, loss=l2_loss)
+                # pbar.update(evaiter)
 
     return x.detach().view(-1).cpu()
 
-def spectrum2wav(spectrum):
+def spectrum2wav(spectrum, maxiter = 2000):
     # Reconstruct the audio from spectrum
     """
     Old design not using
@@ -86,5 +86,5 @@ def spectrum2wav(spectrum):
     """
     x = denormalize(spectrum) + ref_level_db
     x = librosa.db_to_power(x)
-    wv = GRAD(np.expand_dims(x, 0), melspecfunc, maxiter = 2000, evaiter = 10, tol = 1e-8)
+    wv = GRAD(np.expand_dims(x, 0), melspecfunc, maxiter = maxiter, evaiter = 10, tol = 1e-8)
     return np.array(wv.detach().cpu())
