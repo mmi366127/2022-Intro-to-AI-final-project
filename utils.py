@@ -69,6 +69,8 @@ def plot_curve(content_loss, style_loss, total_loss, content_title = 'content lo
 
     fig.tight_layout()
     plt.show()
+
+    
     
 def plot_spectrogram_with_raw_signal(signal, sr, title = 'spectrum'):
     plt.title('Spectrogram')
@@ -77,6 +79,20 @@ def plot_spectrogram_with_raw_signal(signal, sr, title = 'spectrum'):
     plt.ylabel('Amplitude')
     plt.title(title)
     plt.show()
+
+
+def plot_spectrum(A, B, title_A = 'Source', title_B = 'Generated'):
+
+    fig, axs = plt.subplots(ncols = 2, figsize = (10, 10))
+    axs[0].imshow(np.flip(A, -2), cmap = None)
+    axs[0].axis('off')
+    axs[0].set_title(title_A)
+    axs[1].imshow(np.flip(B, -2), cmap = None)
+    axs[1].axis('off')
+    axs[1].set_title(title_B)
+    plt.show()
+
+
 
 def plot_spectrogram(spec, sampleRate):
     D = np.abs(spec)

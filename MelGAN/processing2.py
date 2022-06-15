@@ -9,15 +9,19 @@ import librosa
 import torch 
 
 
-hop = 192
-N_FFT = hop * 6
+# hop = 192
+# N_FFT = hop * 6
+N_FFT = 1024
+n_mel_channels = 80
+win_length = 1024
+hop = 256
 sampleRate = 16000
 
 min_level_db = -100
 ref_level_db = 20
 
 # Mel-Spectrum object and function
-melspecobj = MelSpectrogram(n_fft = N_FFT, n_mels = hop, sample_rate = sampleRate, f_min = 0.0, win_length = 6 * hop, hop_length = hop, pad = 0, power = 2, normalized = False)
+melspecobj = MelSpectrogram(n_fft = N_FFT, n_mels = n_mel_channels, sample_rate = sampleRate, f_min = 0.0, f_max = 8000.0, win_length = win_length, hop_length = hop, pad = 0, power = 2, normalized = True)
 melspecfunc = melspecobj.forward
 
 

@@ -44,7 +44,7 @@ def fused_add_tanh_sigmoid_multiply(input_a, input_b, n_channels):
 
 
 class WaveGlowLoss(torch.nn.Module):
-    def __init__(self, sigma=1.0):
+    def __init__(self, sigma = 1.0):
         super(WaveGlowLoss, self).__init__()
         self.sigma = sigma
 
