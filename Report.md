@@ -56,7 +56,7 @@ The following is our training pipeline:
 
 Translate vary length of spectrogram :(suppose the shape of the spectrogram is $XxH$)
 
-1. Split the $XxH$ input into $\frac{L}{2}xH$ chunks.
+1. Split the $XxH$ input into $\frac L2xH$ chunks.
 
 2. Input each chunk into the generator $G$.
 
