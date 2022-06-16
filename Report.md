@@ -84,11 +84,12 @@ Translate vary length of spectrogram :(suppose the shape of the spectrogram is $
 
 ### Introduction
 
-在介紹我們的實驗之前，讓我們先為各位科普一下什麼是 VTuber.
-
-Virtual YouTuber, 簡稱 VTuber, 以虛擬人物形象在影音平台上上傳影片或直播。雖然不必露臉，但聲音「表情」變得更加重要，而聲音表情又與個人「音質」高度相關。
-
+在介紹我們的實驗之前，容我們先為各位科普一下什麼是 VTuber.
+Virtual YouTuber, 簡稱 VTuber, 以虛擬人物形象在影音平台上上傳影片或直播。雖然不必露臉，但聲音「表情」變得更加重要，而聲音表情的豐富度又與個人「音質」高度相關。
 藉由訓練，我們能改變說話的語調，但音質是與生俱來，無法改變的。所以，藉由「Voice Transformation」，我們希望對自己聲音沒有信心的同胞也能打破先天限制，為自己的夢想奮鬥而發出最耀眼的光芒。
+
+總結上頁，藉由 Voice Generator , 我們能增加匿名性、突破先天限制、增加創作潛能。
+
 
 ### Related Work
 
